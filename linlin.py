@@ -180,12 +180,37 @@ class Linlin(object):
         rsc_list = list(filter(lambda rsc: rsc['node_name'] == node_name, resources))
         return rsc_list
 
+    def get_snaps(self):
+        try:
+            with linstor.Linstor(DEFAULT_LINSTOR_URI) as lin:
+                if not lin.connected:
+                    lin.connect()
+
+                snap_list_reply = lin.snapshot_dfn_list()[0].proto_msg
+                snap_list = []
+                if not len(str(node_list_reply)):
+                    print("No LINSTOR nodes found on the network.")
+                else:
+                    for snap in snap_list_reply:
+                        #print('NODE: '+node.name+' = '+node.uuid+' = '+node.net_interfaces[0].address+'\n')
+                        snap_item = {}
+                        # TODO
+                        snap_item['node_uuid'] = snap.uuid
+                        snap_item['node_address'] = snap.net_interfaces[0].address
+                        snap_list.append(snap_item)
+
+                lin.disconnect()
+                return snap_list
+        except Exception as e:
+            print(str(e))
+
 if __name__ == "__main__":
     foo = Linlin()
-    pprint.pprint(foo.get_nodes())
-    pprint.pprint(foo.get_rd())
-    pprint.pprint(foo.get_spd())
+    pprint.pprint(foo.get_snaps())
+#    pprint.pprint(foo.get_nodes())
+#    pprint.pprint(foo.get_rd())
+#    pprint.pprint(foo.get_spd())
     pprint.pprint(foo.get_sp())
-    pprint.pprint(foo.get_rsc())
-    pprint.pprint(foo.get_rsc_by_rsc(rsc_name='a1'))
-    pprint.pprint(foo.get_rsc_by_node(node_name='osboxes'))
+#    pprint.pprint(foo.get_rsc())
+#    pprint.pprint(foo.get_rsc_by_rsc(rsc_name='a1'))
+#    pprint.pprint(foo.get_rsc_by_node(node_name='osboxes'))
