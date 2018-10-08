@@ -70,6 +70,10 @@ class MyApp(App):
         self.bt_show_storage = gui.Button('Show Storage', style={'padding':'10px', 'margin':'10px'})
         self.bt_clear_view = gui.Button('Clear View', style={'padding':'10px', 'margin':'10px'})
 
+        # sub-option widgets
+        self.txt_rsc_create = gui.TextInput(width=200, height=30, margin='10px')
+        self.txt_rsc_create.set_text('new_rsc')
+
         # display window for tasks
         self.view_container = gui.Widget(style={'display': 'block', 'overflow': 'auto', 'margin':'10px', 'text-align':'left', 'align':'left'})
 
@@ -95,13 +99,13 @@ class MyApp(App):
         return main_container
 
     def view_clear(self):
-        # reset view if dirty
+        # reset view
+        self.view_container.empty()
         self.disp_rsc_row_count = 0
-        if self.disp_rsc_row:
-            self.view_container.empty()
-            self.disp_rsc_row = []
+        self.disp_rsc_row = []
 
     def action_wait(self):
+
         self.view_clear()
 
         # A display row for message
@@ -111,12 +115,16 @@ class MyApp(App):
         # add message label to container
         lbl_msg = 'Waiting for response...'
         lbl = gui.Label(lbl_msg)
-        self.disp_rsc_row[0].append(lbl, 'action_msg')
+        self.disp_rsc_row[self.disp_rsc_row_count].append(lbl, 'action_msg')
 
         self.disp_rsc_row_count += 1
 
         # Add the row to the display
-        self.view_container.append(self.disp_rsc_row, 'action_msg')
+        self.view_container.redraw()
+        self.view_container.append(self.disp_rsc_row, 'msg')
+
+    def rsc_create(self, emitter):
+        print('rsc_name: '+ str(self.txt_rsc_create.get_value()))
 
     def on_button_show_rsc(self, emitter):
 
@@ -126,7 +134,7 @@ class MyApp(App):
         # get data
         self.rscs = cluster.get_rd()
 
-        # Clear wait message 
+        # Clear wait message
         self.view_clear()
 
         for rsc in self.rscs:
@@ -147,7 +155,19 @@ class MyApp(App):
             self.disp_rsc_row_count += 1
             print('Rsc count: ' + str(self.disp_rsc_row_count))
 
-        # Add the entire rows to the display
+        # Add button for Resource Create
+        row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
+        self.disp_rsc_row.append(row)
+
+        lbl_rsc_create_msg = 'Create a new resource volume'
+        lbl_rsc_create = gui.Label(lbl_rsc_create_msg)
+        bt_rsc_create = gui.Button('Proceed', width=200, height=30, margin='10px')
+        bt_rsc_create.onclick.connect(self.rsc_create)
+
+        self.disp_rsc_row[self.disp_rsc_row_count].append(lbl_rsc_create, 'lbl')
+        self.disp_rsc_row[self.disp_rsc_row_count].append(self.txt_rsc_create, 'new_rsc')
+        self.disp_rsc_row[self.disp_rsc_row_count].append(bt_rsc_create, 'btn')
+        self.disp_rsc_row_count += 1
         self.view_container.append(self.disp_rsc_row, 'rsc_list')
 
     def rsc_row_add(self, rsc_nodes, row):
@@ -219,9 +239,6 @@ class MyApp(App):
 
         # Clear wait message
         self.view_clear()
-
-        # get data
-        self.sp = cluster.get_sp()
 
         index = 0
         for node in self.sp:
