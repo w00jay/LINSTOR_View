@@ -85,6 +85,7 @@ class MyApp(App):
 
         # event callbacks
         self.bt_show_rsc.onclick.connect(self.on_button_show_rsc)
+        self.bt_show_snap.onclick.connect(self.on_button_show_snap)
         self.bt_show_nodes.onclick.connect(self.on_button_show_nodes)
         self.bt_show_storage.onclick.connect(self.on_button_show_storage)
         self.bt_clear_view.onclick.connect(self.on_button_view_clear)
@@ -109,12 +110,16 @@ class MyApp(App):
         self.view_clear()
 
         # A display row for message
+        lbl_msg = 'Waiting for response...'
+        self.add_view_line(lbl_msg)
+
+    def add_view_line(self, msg):
+        # A display row for message
         row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
         self.disp_rsc_row.append(row)
 
         # add message label to container
-        lbl_msg = 'Waiting for response...'
-        lbl = gui.Label(lbl_msg)
+        lbl = gui.Label(msg)
         self.disp_rsc_row[self.disp_rsc_row_count].append(lbl, 'action_msg')
 
         self.disp_rsc_row_count += 1
@@ -125,6 +130,38 @@ class MyApp(App):
 
     def rsc_create(self, emitter):
         print('rsc_name: '+ str(self.txt_rsc_create.get_value()))
+
+        self.action_wait()
+
+        msg = 'Deployed resource ' + str(self.txt_rsc_create.get_value()) 
+        self.add_view_line('Deployed resource ')
+
+    def on_button_show_snap(self, emitter):
+
+        # Clear view w/ message
+        self.action_wait()
+
+        # get data
+        self.snap = cluster.get_snap()
+
+        # Clear wait message
+        self.view_clear()
+
+        index = 0
+
+        if self.snap:
+            # TODO
+            for node in self.nodes:
+
+                lbl_msg = str(node['node_name']) + ' @ ' + str(node['node_address'])
+                self.add_view_line(lbl_msg)
+                print(str(index) + ' ' + lbl_msg)
+        else:
+            lbl_msg = 'No LINSTOR Snapshots found'
+            self.add_view_line(lbl_msg)
+
+        print('Nodes count: ' + str(index))
+
 
     def on_button_show_rsc(self, emitter):
 
@@ -155,7 +192,7 @@ class MyApp(App):
             self.disp_rsc_row_count += 1
             print('Rsc count: ' + str(self.disp_rsc_row_count))
 
-        # Add button for Resource Create
+        # Add widgets for Resource Create
         row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
         self.disp_rsc_row.append(row)
 
@@ -165,6 +202,7 @@ class MyApp(App):
         bt_rsc_create.onclick.connect(self.rsc_create)
 
         self.disp_rsc_row[self.disp_rsc_row_count].append(lbl_rsc_create, 'lbl')
+        # text window is global for proper live look up
         self.disp_rsc_row[self.disp_rsc_row_count].append(self.txt_rsc_create, 'new_rsc')
         self.disp_rsc_row[self.disp_rsc_row_count].append(bt_rsc_create, 'btn')
         self.disp_rsc_row_count += 1
@@ -211,23 +249,12 @@ class MyApp(App):
 
         index = 0
         for node in self.nodes:
-            # a display row for nodes
-            row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
-            self.disp_rsc_row.append(row)
 
-            # key = node['node_uuid']
             lbl_msg = str(node['node_name']) + ' @ ' + str(node['node_address'])
-            lbl = gui.Label(lbl_msg,
-                    style={'border':'1px dashed green', 'padding':'5px', 'margin':'5px'})
-            self.disp_rsc_row[0].append(lbl, str(index))
-            index += 1
+            self.add_view_line(lbl_msg)
             print(str(index) + ' ' + lbl_msg)
 
-        self.disp_rsc_row_count += 1
         print('Nodes count: ' + str(index))
-
-        # Add the entire rows to the display
-        self.view_container.append(self.disp_rsc_row, 'node_list')
 
     def on_button_show_storage(self, emitter):
 
@@ -242,11 +269,6 @@ class MyApp(App):
 
         index = 0
         for node in self.sp:
-            # a display row for nodes
-            row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
-            self.disp_rsc_row.append(row)
-
-            # key = node['node_uuid']
             lbl_msg = str(node['sp_name']) + ' @ ' + str(node['node_name'])
 
             if node['driver_name'] == 'DisklessDriver':
@@ -256,17 +278,11 @@ class MyApp(App):
                 lbl_msg += ' | Max Capacity: ' + str(node['sp_cap']) + 'MB'
                 lbl_msg += ' | Free ' + str(node['sp_free']) + 'MB'
 
-            lbl = gui.Label(lbl_msg,
-                    style={'border':'1px dashed green', 'padding':'5px', 'margin':'5px'})
-            self.disp_rsc_row[0].append(lbl, str(index))
+            self.add_view_line(lbl_msg)
             index += 1
             print(str(index) + ' ' + lbl_msg)
 
-        self.disp_rsc_row_count += 1
         print('Nodes count: ' + str(index))
-
-        # Add the entire rows to the display
-        self.view_container.append(self.disp_rsc_row, 'node_list')
 
     def on_button_view_clear(self, emitter):
         self.view_clear()

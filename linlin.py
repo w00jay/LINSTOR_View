@@ -43,7 +43,7 @@ class Linlin(object):
                 rd_reply = lin.resource_dfn_list()[0].proto_msg
 
                 if not rd_reply:
-                    print("Empty Resource Definition list")
+                    print("No LINSTOR Resource Definitions found")
                 else:
                     for rsc in rd_reply.rsc_dfns:
                         rsc_item = {}
@@ -65,7 +65,7 @@ class Linlin(object):
                 # Storage Pool Definition List
                 spd_reply = lin.storage_pool_dfn_list()[0].proto_msg
                 if not spd_reply:
-                    print("Empty Storage Pool Definition list")
+                    print("No LINSTOR Storage Pool Definition found")
 
                 spd_list = []
                 for node in spd_reply.stor_pool_dfns:
@@ -89,7 +89,7 @@ class Linlin(object):
                 # Fetch Storage Pool List
                 sp_reply = lin.storage_pool_list()[0].proto_msg
                 if not sp_reply:
-                    print("Empty Storage Pool list")
+                    print("No LINSTOR Storage Pool found")
 
                 sp_list = []
                 node_count = 0
@@ -148,7 +148,7 @@ class Linlin(object):
 
                 rsc_reply = lin.resource_list()[0].proto_msg
                 if not rsc_reply:
-                    print("Empty Resource list")
+                    print("No LINSTOR Resources found")
 
                 rsc_list = []
                 for rsc in rsc_reply.resources:
@@ -180,7 +180,7 @@ class Linlin(object):
         rsc_list = list(filter(lambda rsc: rsc['node_name'] == node_name, resources))
         return rsc_list
 
-    def get_snaps(self):
+    def get_snap(self):
         try:
             with linstor.Linstor(DEFAULT_LINSTOR_URI) as lin:
                 if not lin.connected:
@@ -188,8 +188,8 @@ class Linlin(object):
 
                 snap_list_reply = lin.snapshot_dfn_list()[0].proto_msg
                 snap_list = []
-                if not len(str(node_list_reply)):
-                    print("No LINSTOR nodes found on the network.")
+                if not len(str(snap_list_reply)):
+                    print("No LINSTOR snapshots found on the network.")
                 else:
                     for snap in snap_list_reply:
                         #print('NODE: '+node.name+' = '+node.uuid+' = '+node.net_interfaces[0].address+'\n')
@@ -206,7 +206,7 @@ class Linlin(object):
 
 if __name__ == "__main__":
     foo = Linlin()
-    pprint.pprint(foo.get_snaps())
+    pprint.pprint(foo.get_snap())
 #    pprint.pprint(foo.get_nodes())
 #    pprint.pprint(foo.get_rd())
 #    pprint.pprint(foo.get_spd())
