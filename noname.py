@@ -21,8 +21,16 @@ from remi import start, App
 import linstor
 from linlin import Linlin
 
+LVM = 'Lvm'
+LVM_THIN = 'LvmThin'
+
 DEFAULT_LINSTOR_URI = 'linstor://localhost'
+DEFAULT_VOL_GROUP = 'vol_group'
 DEFAULT_POOL = 'DfltStorPool'
+DEFAULT_RSC = 'new_rsc'
+DEFAULT_RSC_SIZE = 97657 # KiB = Just over 100MB
+DEFAULT_DRIVER = LVM_THIN
+
 
 cluster = Linlin()
 
@@ -129,11 +137,15 @@ class MyApp(App):
         self.view_container.append(self.disp_rsc_row, 'msg')
 
     def rsc_create(self, emitter):
-        print('rsc_name: '+ str(self.txt_rsc_create.get_value()))
+        new_rsc_name = self.txt_rsc_create.get_value()
+        print('rsc_name: '+ str(new_rsc_name))
 
         self.action_wait()
 
-        msg = 'Deployed resource ' + str(self.txt_rsc_create.get_value()) 
+        cluster.build_rsc(rsc_name = new_rsc_name, rsc_size=DEFAULT_RSC_SIZE,
+                          vg=DEFAULT_VOL_GROUP, driver=DEFAULT_DRIVER)
+
+        msg = 'Deployed resource ' + str(self.txt_rsc_create.get_value())
         self.add_view_line('Deployed resource ')
 
     def on_button_show_snap(self, emitter):
@@ -162,7 +174,6 @@ class MyApp(App):
 
         print('Nodes count: ' + str(index))
 
-
     def on_button_show_rsc(self, emitter):
 
         # Clear view w/ message
@@ -174,23 +185,27 @@ class MyApp(App):
         # Clear wait message
         self.view_clear()
 
-        for rsc in self.rscs:
-            # A display row for each resources
-            row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
-            self.disp_rsc_row.append(row)
+        if self.rscs:
+            for rsc in self.rscs:
+                # A display row for each resources
+                row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
+                self.disp_rsc_row.append(row)
 
-            # Add row heading
-            lbl_msg = 'Row: ' + str(self.disp_rsc_row_count) + ' Rsc: ' + rsc['rsc_name']
-            lbl = gui.Label(lbl_msg)
-            self.disp_rsc_row[self.disp_rsc_row_count].append(lbl, 'rsc_name')
-            print(lbl_msg)
+                # Add row heading
+                lbl_msg = str(self.disp_rsc_row_count) + '. Resource: ' + rsc['rsc_name']
+                lbl = gui.Label(lbl_msg)
+                self.disp_rsc_row[self.disp_rsc_row_count].append(lbl, 'rsc_name')
+                print(lbl_msg)
 
-            # Populate the row w/ resource nodes
-            rsc_nodes = cluster.get_rsc_by_rsc(rsc['rsc_name'])
-            self.rsc_row_add(rsc_nodes, row=self.disp_rsc_row_count)
+                # Populate the row w/ resource nodes
+                rsc_nodes = cluster.get_rsc_by_rsc(rsc['rsc_name'])
+                self.rsc_row_add(rsc_nodes, row=self.disp_rsc_row_count)
 
-            self.disp_rsc_row_count += 1
-            print('Rsc count: ' + str(self.disp_rsc_row_count))
+                self.disp_rsc_row_count += 1
+                print('Rsc count: ' + str(self.disp_rsc_row_count))
+        else:
+            lbl_msg = 'No LINSTOR Resources found'
+            self.add_view_line(lbl_msg)
 
         # Add widgets for Resource Create
         row = gui.HBox(style={'border':'1px solid gray', 'margin':'10px', 'text-align':'left'})
@@ -220,21 +235,24 @@ class MyApp(App):
             print(str(index) + ' ' + lbl_msg)
 
         def rsc_close_btn(self, rsc_disp, rsc_count):
-            lbl = gui.Label('Clear')
-            key = 86
-
+            target_rsc_name = rsc_disp.get_child('rsc_name').get_text().split(':')[1][1:]
             print('Removing ' + str(rsc_count) + ' resources.')
+            print('on resource named: ' + str(target_rsc_name))
+
+            # Remove backend resources
+            cluster.destroy_rsc(rsc_name_target=target_rsc_name)
+
             # rsc_disp.empty()
             for key in range(rsc_count):
                 print('removing ' + str(key))
                 rsc_disp.remove_child(rsc_disp.get_child(str(key)))
-            rsc_disp.remove_child(rsc_disp.get_child('rsc_name'))
-            rsc_disp.remove_child(rsc_disp.get_child('clear'))
+            #rsc_disp.remove_child(rsc_disp.get_child('rsc_name'))
+            rsc_disp.remove_child(rsc_disp.get_child('destroy'))
 
         # Add row clear button
-        close_btn = gui.Button('Clear')
+        close_btn = gui.Button('Destroy', style={'padding':'5px'})
         close_btn.onclick.connect(rsc_close_btn, self.disp_rsc_row[row], index)
-        self.disp_rsc_row[row].append(close_btn, 'clear')
+        self.disp_rsc_row[row].append(close_btn, 'destroy')
 
     def on_button_show_nodes(self, emitter):
 
@@ -248,12 +266,15 @@ class MyApp(App):
         self.view_clear()
 
         index = 0
-        for node in self.nodes:
+        if self.nodes:
+            for node in self.nodes:
 
-            lbl_msg = str(node['node_name']) + ' @ ' + str(node['node_address'])
+                lbl_msg = str(node['node_name']) + ' @ ' + str(node['node_address'])
+                self.add_view_line(lbl_msg)
+                print(str(index) + ' ' + lbl_msg)
+        else:
+            lbl_msg = 'No LINSTOR Resources found'
             self.add_view_line(lbl_msg)
-            print(str(index) + ' ' + lbl_msg)
-
         print('Nodes count: ' + str(index))
 
     def on_button_show_storage(self, emitter):

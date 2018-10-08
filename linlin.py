@@ -2,11 +2,25 @@ import linstor
 import pprint
 from google.protobuf.json_format import MessageToDict
 
+LVM = 'Lvm'
+LVM_THIN = 'LvmThin'
+
 DEFAULT_LINSTOR_URI = 'linstor://localhost'
+DEFAULT_VOL_GROUP = 'vol_group'
+DEFAULT_POOL = 'DfltStorPool'
+DEFAULT_RSC = 'new_rsc'
+DEFAULT_RSC_SIZE = 97657 # KiB = Just over 100MB
+DEFAULT_DRIVER = LVM_THIN
+
 
 class Linlin(object):
     def __init__(self):
         pass
+
+    def check_api_response(self, api_response):
+        for apiresp in api_response:
+            print(apiresp)
+        return linstor.Linstor.all_api_responses_success(api_response)
 
     def get_nodes(self):
         try:
@@ -17,7 +31,7 @@ class Linlin(object):
                 node_list_reply = lin.node_list()[0].proto_msg
 
                 node_list = []
-                if not node_list_reply:
+                if not len(str(node_list_reply)):
                     print("No LINSTOR nodes found on the network.")
                 else:
                     for node in node_list_reply.nodes:
@@ -42,8 +56,8 @@ class Linlin(object):
                 rd_list = []
                 rd_reply = lin.resource_dfn_list()[0].proto_msg
 
-                if not rd_reply:
-                    print("No LINSTOR Resource Definitions found")
+                if not len(str(rd_reply)):
+                     print("No LINSTOR Resource Definitions found")
                 else:
                     for rsc in rd_reply.rsc_dfns:
                         rsc_item = {}
@@ -64,7 +78,7 @@ class Linlin(object):
 
                 # Storage Pool Definition List
                 spd_reply = lin.storage_pool_dfn_list()[0].proto_msg
-                if not spd_reply:
+                if not len(str(spd_reply)):
                     print("No LINSTOR Storage Pool Definition found")
 
                 spd_list = []
@@ -88,7 +102,7 @@ class Linlin(object):
 
                 # Fetch Storage Pool List
                 sp_reply = lin.storage_pool_list()[0].proto_msg
-                if not sp_reply:
+                if not len(str(sp_reply)):
                     print("No LINSTOR Storage Pool found")
 
                 sp_list = []
@@ -147,7 +161,7 @@ class Linlin(object):
                     lin.connect()
 
                 rsc_reply = lin.resource_list()[0].proto_msg
-                if not rsc_reply:
+                if not len(str(rsc_reply)):
                     print("No LINSTOR Resources found")
 
                 rsc_list = []
@@ -166,7 +180,7 @@ class Linlin(object):
 
     def get_rsc_by_rsc(self, rsc_name):
         resources = self.get_rsc()
-        if not resources:
+        if not len(str(resources)):
             print("Empty Resource list")
 
         rsc_list = list(filter(lambda rsc: rsc['rsc_name'] == rsc_name, resources))
@@ -174,7 +188,7 @@ class Linlin(object):
 
     def get_rsc_by_node(self, node_name):
         resources = self.get_rsc()
-        if not resources:
+        if not len(str(resources)):
             print("Empty Resource list")
 
         rsc_list = list(filter(lambda rsc: rsc['node_name'] == node_name, resources))
@@ -201,6 +215,110 @@ class Linlin(object):
 
                 lin.disconnect()
                 return snap_list
+        except Exception as e:
+            print(str(e))
+
+    def build_sp(self, vg=DEFAULT_VOL_GROUP, diver=DEFAULT_DRIVER):
+        try:
+            with linstor.Linstor(DEFAULT_LINSTOR_URI) as lin:
+                if not lin.connected:
+                    lin.connect()
+
+                # Check for Storage Pool List
+                sp_list = self.get_sp()
+                #pprint.pprint(sp_list)
+
+                if not len(str(sp_list)):
+                    print("No existing Storage Pools found")
+
+                    # Check for Ns
+                    node_list = self.get_nodes()
+                    #pprint.pprint(node_list)
+
+                    if len(node_list) == 0:
+                        raise Exception("Error: No resource nodes available")
+
+                    # Create Storage Pool (definition is implicit)
+                    spd_name = get_spd()[0]['spd_name']
+
+                    if driver == LVM:
+                        driver_pool = vg
+                    elif driver == LVM_THIN:
+                        driver_pool = vg+"/"+spd_name
+
+                    for node in node_list:
+                        lin.storage_pool_create(
+                            node_name=node['node_name'],
+                            storage_pool_name=spd_name,
+                            storage_driver=driver,
+                            driver_pool_name=driver_pool)
+                        print('Created Storage Pool for '+spd_name+' @ '+node['node_name']+' in '+driver_pool)
+                else:
+                    print('Found ' + str(len(sp_list)) + ' storage pools.')
+
+                # Ready to Move on
+                return
+
+        except Exception as e:
+            print(str(e))
+
+    def build_rsc(self, rsc_name=DEFAULT_RSC, rsc_size=DEFAULT_RSC_SIZE,
+                  vg=DEFAULT_VOL_GROUP, driver=DEFAULT_DRIVER):
+        try:
+            with linstor.Linstor(DEFAULT_LINSTOR_URI) as lin:
+
+                # Check and build SP, if necessary
+                self.build_sp(vg, driver)
+
+                # Check for RD
+                rsc_name_target = rsc_name
+                rd_list = lin.resource_dfn_list()[0].proto_msg
+
+                # TODO Check for duplicate RD name
+                # print("No existing Resource Definition found.  Creating a new one.")
+                rd_reply = lin.resource_dfn_create(rsc_name_target)  # Need error checking
+                print(self.check_api_response(rd_reply))
+                #print("Created RD: "+str(rd_list[0].proto_msg))
+
+
+                # Create a New VD
+                vd_reply = lin.volume_dfn_create(rsc_name=rsc_name_target, size=rsc_size)  # size is in KiB
+                print(self.check_api_response(vd_reply))
+                #print("Created VD: "+str(vd_reply[0].proto_msg))
+                #print(rd_list[0])
+
+                # Create RSC's
+                sp_list = self.get_sp()
+                #pprint.pprint(sp_list)
+
+                for node in sp_list:
+                    rsc_reply = lin.resource_create(rsc_name=rsc_name_target, node_name=node['node_name'])
+                    print(self.check_api_response(rsc_reply))
+
+        except Exception as e:
+            print(str(e))
+
+    def destroy_rsc(self, rsc_name_target):
+        try:
+            with linstor.Linstor(DEFAULT_LINSTOR_URI) as lin:
+                sp_list = self.get_sp()
+
+                # Delete deployed resources
+                for node in sp_list:
+                    rsc_reply = lin.resource_delete(rsc_name=rsc_name_target, node_name=node['node_name'],
+                                                    async_msg=False)
+                    print(self.check_api_response(rsc_reply))
+
+                # Delete VD
+                vd_reply = lin.volume_dfn_delete(rsc_name_target, 0)
+                print(self.check_api_response(rsc_reply))
+
+                # Delete RD
+                rd_reply = lin.resource_dfn_delete(rsc_name_target)
+                print(self.check_api_response(rsc_reply))
+
+
+
         except Exception as e:
             print(str(e))
 
