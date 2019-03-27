@@ -135,10 +135,8 @@ class Linlin(object):
                             int(node['freeSpace']['totalCapacity']) / 976.5625,
                             2)
 
-                    if node.driver == "LvmDriver":
-                        sp_node['driver_name'] = "Lvm"
-                    else:
-                        sp_node['driver_name'] = node.driver
+                    # if node.driver == "LvmDriver":
+                    sp_node['driver_kind'] = node.provider_kind
 
                     if node.vlms:
 #                         print(node.vlms[0].backing_disk)
